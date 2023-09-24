@@ -9,21 +9,24 @@ use rand::{Rng};
 fn polynomial_eval(polynomial:Vec<BigInt>,n:i32,prime:BigInt,k:i32)->Vec<BigInt>{
    let mut D:Vec<BigInt> = Vec::new();     /*Polynomial evaluation function takes Vec of polynomial coeffients, n-number of points
    at which we want the polynomial evaluation, 'k-1' is the degree of the polynomial,*/
-   let mut temp:BigInt = Zero::zero();
+   
    let mut x :BigInt = One::one();
    for i in 1..n+1{
+    let mut temp:BigInt = Zero::zero();
     for j in 0..k{
-        temp =(temp +(polynomial[j as usize].clone()*x.clone())%prime.clone())%prime.clone();
-        x=(x*i)%prime.clone();
+        temp =(temp +(polynomial[j as usize].clone()*(BigInt::pow(&x, j.try_into().unwrap()))));
+       
 
     }
     x +=1;
+    temp = temp%&prime;
     D.push(temp.clone());
    }
    
 return D //D is the vector which contains the evaluation of the polynomial at 1..n points, which is nothing but the 'n' pieces of the secret. 
 }
-fn choosing_k_out_of_n_x_cordinates(D:Vec<BigInt>,k:i32)->Vec<i32>{
+fn choosing_k_out_of_n_x_cordinates(D:Vec<BigInt>,k:i32)->Vec<i32>{ /*This function takes a vector of n points and 
+    outputs k indexes out of n places */
     let n = D.len();
     let mut indexes:Vec<i32> = Vec::new();
     for i in 0..k{
@@ -34,13 +37,12 @@ fn choosing_k_out_of_n_x_cordinates(D:Vec<BigInt>,k:i32)->Vec<i32>{
     }
     indexes.push(r.try_into().unwrap());
 }
-return indexes;
+return indexes; /*This outputs k indexes which are array indexes, means: for example 
+indexes are 2,4,5- x-cordinates are 3,5,6 respectively.  */
 }
-// let k_points:Vec<(usize,BigInt)> = indexes.clone().into_iter().map(|x| (x, D[x].clone())).collect(); /*This will contains
-//  k points out of n points,where each point is a tuple (x_cordinate,y_cordinate)  */
 
-// return k_points
-fn y_cordinates_of_k_n_points(a:Vec<i32>,D:Vec<BigInt>)->(Vec<BigInt>){
+fn y_cordinates_of_k_n_points(a:Vec<i32>,D:Vec<BigInt>)->(Vec<BigInt>){ /*This function takes k-many indexes and 
+    outputs their corresponding y-cordinates. */
     let mut y_cordinates:Vec<BigInt> = Vec::new();
     for i in 0..a.len(){
         let mut r = &D[a[i] as usize];
@@ -57,30 +59,30 @@ fn y_cordinates_of_k_n_points(a:Vec<i32>,D:Vec<BigInt>)->(Vec<BigInt>){
 fn lagrange_interpolation(x:Vec<i32>,y:Vec<BigInt>,x_evaluate:i32,p:BigInt)->BigInt{ /*lagrange_interpolation() fun takes 
 x,y cordinates of k points,x-cordinate of the evaluation point(In our case it is 0) and returns the polynomial value at the given x-cordinate*/
 let k = x.len();
-let mut sum = Zero::zero();
+let mut sum:BigInt = Zero::zero();
 for i in 0..k {
     let mut numer:BigInt = One::one();
     let mut denom :BigInt= One::one();
     for j in 0..k{
-        if i ==j {continue};
-        println!("{},{}",x[j],x_evaluate);
-        let mut sub = (x_evaluate-x[j]);
-        numer = (sub)*numer;
-        denom = (x[i] - x[j])*denom;
+        if i ==j {continue}else {
+            //println!("{},{}",x[j],x_evaluate);
+            let mut sub = (x_evaluate-(x[j]+1));
+            numer = (sub)*numer;
+            denom = (x[i] - x[j])*denom;
+        }
+        
     }
-    sum = sum +(numer*inverse(denom,p.clone()))*y[i].clone();
+    sum = sum +(numer*inverse(p.clone(),denom))*y[i].clone();
 
 }
-return sum
+if sum<Zero::zero(){ let mut c = sum%p.clone();
+    sum = (p+c);
+}else {sum = (sum%p) ;}
+return sum /*This value should be equal to 'secret' */
+
 }
-// fn inverse(a:BigInt,n:BigInt) ->BigInt{
-//    let mut remainder:BigInt = Zero::zero();
-//    let mut 
 
-
-// }
-
-fn extended_gcd(n:BigInt,a:BigInt)->(BigInt,BigInt){
+fn extended_gcd(n:BigInt,a:BigInt)->(BigInt,BigInt){ /*This function outputs x,y such that n.x+a.y=1  */
    
     if a==Zero::zero() {return (One::one(),Zero::zero());}
     let (mut x_2,mut y_2) = extended_gcd(a.clone(),n.clone()%a.clone());
@@ -95,80 +97,32 @@ fn extended_gcd(n:BigInt,a:BigInt)->(BigInt,BigInt){
 
 
 }
-fn y_compute(mut x:BigInt,mut y:BigInt,mut n:BigInt)->BigInt{
+fn y_compute(mut x:BigInt,mut y:BigInt,mut n:BigInt)->BigInt{  /*'y' value of above function might be 
+negative also, that's why we want to make it positive  */
     if y<Zero::zero(){ let c = y%n.clone();
         y = n.clone()+c;
     }else {y = y%n ;}
     return y
 }
-fn inverse(n:BigInt,a:BigInt)->BigInt{
+fn inverse(mut n:BigInt,mut a:BigInt)->BigInt{
     let mut x:BigInt;
     let mut y:BigInt;
+    if a<Zero::zero(){let mut r = a%n.clone();
+    a = r+n.clone();}
     (x,y) = extended_gcd(n.clone(), a);
     y = y_compute(x, y, n.clone());
     if y<Zero::zero(){ let mut c = y%n.clone();
-        y = n+c;
-    }else {y = y%n ;}
+        y = (n+c);
+    }else {y = (y%n) ;}
     return y
 
- }
-// fn mod_reverse(&self, num: BigInt) -> BigInt {
-//     let num1 = if num < Zero::zero() {
-//         num + &self.prime
-//     } else {
-//         num
-//     };
-//     let (_gcd, _, inv) = self.extend_euclid_algo(num1);
-//     // println!("inv:{}", inv);
-//     inv
-// }
-
-/**
- * https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
- *
- * a*s + b*t = gcd(a,b) a > b
- * r_0 = a*s_0 + b*t_0    s_0 = 1    t_0 = 0
- * r_1 = a*s_1 + b*t_1    s_1 = 0    t_1 = 1
- * r_2 = r_0 - r_1*q_1
- *     = a(s_0 - s_1*q_1) + b(t_0 - t_1*q_1)   s_2 = s_0 - s_1*q_1     t_2 = t_0 - t_1*q_1
- * ...
- * stop when r_k = 0
- */
-// fn extend_euclid_algo(&self, num: BigInt) -> (BigInt, BigInt, BigInt) {
-//     let (mut r, mut next_r, mut s, mut next_s, mut t, mut next_t) = (
-//         self.prime.clone(),
-//         num.clone(),
-//         BigInt::from(1),
-//         BigInt::from(0),
-//         BigInt::from(0),
-//         BigInt::from(1),
-//     );
-//     let mut quotient;
-//     let mut tmp;
-//     while next_r > Zero::zero() {
-//         quotient = r.clone() / next_r.clone();
-//         tmp = next_r.clone();
-//         next_r = r.clone() - next_r.clone() * quotient.clone();
-//         r = tmp.clone();
-//         tmp = next_s.clone();
-//         next_s = s - next_s.clone() * quotient.clone();
-//         s = tmp;
-//         tmp = next_t.clone();
-//         next_t = t - next_t * quotient;
-//         t = tmp;
-//     }
-//     // println!(
-//     // "{} * {} + {} * {} = {} mod {}",
-//     // num, t, &self.prime, s, r, &self.prime
-//     // );
-//     (r, s, t)
-// }
+}
 
 
 
 fn main() {
 let n = 5; // 'n' is the number of shares  
-let k = 2; //'k' is the threshold 
+let k = 4; //'k' is the threshold 
 let prime = BigInt::parse_bytes(b"fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",16).unwrap();
 //Large prime number
 
